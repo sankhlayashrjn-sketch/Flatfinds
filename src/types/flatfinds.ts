@@ -42,6 +42,17 @@ export interface Group {
   name: string;
   expectedMemberCount: number;
   createdAt: string;
+  /** The mock listing id the group settled on, once discussed. Null until finalized. */
+  finalizedListingId: string | null;
+  finalizedAt: string | null;
+}
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface FlatmateProfile {

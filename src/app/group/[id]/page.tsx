@@ -3,17 +3,15 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getGroup } from "@/lib/groupApi";
+import { useGroup } from "@/hooks/useGroup";
 import { useGroupProfiles } from "@/hooks/useGroupProfiles";
 import { personAccent } from "@/lib/personColors";
 import { QrShare } from "@/components/QrShare";
-import type { Group } from "@/types/flatfinds";
 
 export default function GroupWaitingRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: groupId } = use(params);
   const router = useRouter();
-  const [group, setGroup] = useState<Group | null>(null);
-  const [groupError, setGroupError] = useState(false);
+  const { group, notFound } = useGroup(groupId);
   const [joinUrl, setJoinUrl] = useState("");
   const { profiles, error: profilesError } = useGroupProfiles(groupId);
 
@@ -21,15 +19,6 @@ export default function GroupWaitingRoomPage({ params }: { params: Promise<{ id:
     // Reads window.location (external to React), not available during SSR.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setJoinUrl(`${window.location.origin}/join/${groupId}`);
-    getGroup(groupId)
-      .then((g) => {
-        if (!g || !g.expectedMemberCount) {
-          setGroupError(true);
-          return;
-        }
-        setGroup(g);
-      })
-      .catch(() => setGroupError(true));
   }, [groupId]);
 
   useEffect(() => {
@@ -38,7 +27,7 @@ export default function GroupWaitingRoomPage({ params }: { params: Promise<{ id:
     }
   }, [group, profiles, groupId, router]);
 
-  if (groupError) {
+  if (notFound) {
     return (
       <div className="mx-auto w-full max-w-md px-6 py-20 text-center">
         <h1 className="brand-text text-2xl font-extrabold">Group not found</h1>

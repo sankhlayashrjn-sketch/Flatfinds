@@ -1,40 +1,27 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useMemo } from "react";
 import Link from "next/link";
-import { getGroup } from "@/lib/groupApi";
+import { useGroup } from "@/hooks/useGroup";
 import { useGroupProfiles } from "@/hooks/useGroupProfiles";
 import { listingPool } from "@/lib/listingPool";
 import { computeShortlist } from "@/lib/matchListings";
 import { ShortlistCard } from "@/components/ShortlistCard";
 import { ShortlistTabs } from "@/components/ShortlistTabs";
+import { FinalizedBanner } from "@/components/FinalizedBanner";
 import { EmptySearchIllustration } from "@/components/icons";
-import type { Group } from "@/types/flatfinds";
 
 export default function ShortlistPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: groupId } = use(params);
-  const [group, setGroup] = useState<Group | null>(null);
-  const [groupError, setGroupError] = useState(false);
+  const { group, notFound, setGroup } = useGroup(groupId);
   const { profiles } = useGroupProfiles(groupId);
-
-  useEffect(() => {
-    getGroup(groupId)
-      .then((g) => {
-        if (!g) {
-          setGroupError(true);
-          return;
-        }
-        setGroup(g);
-      })
-      .catch(() => setGroupError(true));
-  }, [groupId]);
 
   const shortlist = useMemo(() => {
     if (!profiles || profiles.length === 0) return null;
     return computeShortlist(profiles, listingPool);
   }, [profiles]);
 
-  if (groupError) {
+  if (notFound) {
     return (
       <div className="mx-auto w-full max-w-md px-6 py-20 text-center">
         <h1 className="brand-text text-2xl font-extrabold">Group not found</h1>
@@ -89,6 +76,7 @@ export default function ShortlistPage({ params }: { params: Promise<{ id: string
       </p>
 
       <ShortlistTabs groupId={groupId} active="shortlist" />
+      <FinalizedBanner group={group} />
 
       {!shortlist || shortlist.length === 0 ? (
         <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-8 text-center text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
@@ -102,7 +90,13 @@ export default function ShortlistPage({ params }: { params: Promise<{ id: string
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           {shortlist.map((entry) => (
-            <ShortlistCard key={entry.listing.id} entry={entry} groupId={groupId} />
+            <ShortlistCard
+              key={entry.listing.id}
+              entry={entry}
+              groupId={groupId}
+              finalizedListingId={group.finalizedListingId}
+              onFinalized={setGroup}
+            />
           ))}
         </div>
       )}

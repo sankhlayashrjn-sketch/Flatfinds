@@ -1,29 +1,68 @@
-import type { ShortlistEntry } from "@/types/flatfinds";
+"use client";
+
+import { useState } from "react";
+import type { Group, ShortlistEntry } from "@/types/flatfinds";
 import { personAccent } from "@/lib/personColors";
 import { useWishlist } from "@/hooks/useWishlist";
+import { finalizeListing } from "@/lib/groupApi";
 import { ListingPhoto } from "./ListingPhoto";
 import { PersonMatchBlock } from "./PersonMatchBlock";
+import { FinalizedStamp } from "./FinalizedStamp";
 import { AreaIcon, BathIcon, BedIcon, FloorIcon, HeartIcon, VerifiedIcon } from "./icons";
 
 function formatInr(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-export function ShortlistCard({ entry, groupId }: { entry: ShortlistEntry; groupId: string }) {
+export function ShortlistCard({
+  entry,
+  groupId,
+  finalizedListingId,
+  onFinalized,
+}: {
+  entry: ShortlistEntry;
+  groupId: string;
+  /** Null if the group hasn't finalized a choice yet. */
+  finalizedListingId: string | null;
+  /** Lets the page update its own group state right away, instead of waiting on the realtime round-trip. */
+  onFinalized?: (group: Group) => void;
+}) {
   const { listing } = entry;
   const { isSaved, toggle } = useWishlist(groupId);
   const saved = isSaved(listing.id);
+  const isChosen = finalizedListingId === listing.id;
+  const alreadyDecided = finalizedListingId !== null;
+  const [confirming, setConfirming] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFinalize = async () => {
+    setFinalizing(true);
+    setError(null);
+    try {
+      const updated = await finalizeListing(groupId, listing.id);
+      onFinalized?.(updated);
+      setConfirming(false);
+    } catch {
+      setError("Couldn't save that — check your connection and try again.");
+    } finally {
+      setFinalizing(false);
+    }
+  };
 
   return (
     <div
       className={`overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-900 ${
-        entry.isFallback
-          ? "border-amber-300 dark:border-amber-700"
-          : "border-slate-200 dark:border-slate-700"
+        isChosen
+          ? "border-red-600 ring-2 ring-red-600"
+          : entry.isFallback
+            ? "border-amber-300 dark:border-amber-700"
+            : "border-slate-200 dark:border-slate-700"
       }`}
     >
       <div className="relative">
         <ListingPhoto id={listing.id} title={listing.title} />
+        {isChosen && <FinalizedStamp />}
         {listing.verified && (
           <span className="accent-bg absolute left-3 top-3 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-white shadow">
             <VerifiedIcon />
@@ -125,6 +164,43 @@ export function ShortlistCard({ entry, groupId }: { entry: ShortlistEntry; group
             />
           ))}
         </div>
+
+        {!alreadyDecided && (
+          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+            {confirming ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Lock this in as the group&apos;s final choice?
+                </span>
+                <button
+                  type="button"
+                  onClick={handleFinalize}
+                  disabled={finalizing}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+                >
+                  {finalizing ? "Saving…" : "Confirm"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  disabled={finalizing}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className="w-full rounded-md border-2 border-red-600 px-3 py-2 text-xs font-bold uppercase tracking-wide text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
+              >
+                Mark as our choice
+              </button>
+            )}
+            {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+          </div>
+        )}
       </div>
     </div>
   );

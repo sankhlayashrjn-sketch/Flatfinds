@@ -1,5 +1,6 @@
 -- FlatFinds schema. Run this once in your Supabase project's SQL editor
--- (Dashboard -> SQL Editor -> New query -> paste -> Run).
+-- (Dashboard -> SQL Editor -> New query -> paste -> Run). Safe to re-run —
+-- everything here is idempotent (if-not-exists / drop-then-create).
 
 create table if not exists groups (
   id uuid primary key default gen_random_uuid(),
@@ -8,7 +9,12 @@ create table if not exists groups (
   -- member count is set a screen later (step 2). The check still applies
   -- once it's set — Postgres check constraints don't reject NULLs.
   expected_member_count int check (expected_member_count >= 2),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Set once the group agrees on a listing (see ShortlistCard's "Mark as
+  -- our choice"). finalized_listing_id is a mock listing id (text), not a
+  -- foreign key — listings live in code (src/lib/listingPool.ts), not a table.
+  finalized_listing_id text,
+  finalized_at timestamptz
 );
 
 create table if not exists profiles (
@@ -22,6 +28,16 @@ create table if not exists profiles (
 
 create index if not exists profiles_group_id_idx on profiles (group_id);
 
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups (id) on delete cascade,
+  sender_name text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists messages_group_id_idx on messages (group_id);
+
 -- There's no accounts/auth in this app: a group is reachable by anyone who
 -- has its id (from the QR code or invite link), which is the deliberate
 -- "if you have the link you're in" model the join flow depends on. These
@@ -31,12 +47,46 @@ create index if not exists profiles_group_id_idx on profiles (group_id);
 -- membership instead of trusting the client.
 alter table groups enable row level security;
 alter table profiles enable row level security;
+alter table messages enable row level security;
 
+drop policy if exists "anyone can read groups" on groups;
 create policy "anyone can read groups" on groups for select using (true);
+drop policy if exists "anyone can create groups" on groups;
 create policy "anyone can create groups" on groups for insert with check (true);
+drop policy if exists "anyone can update groups" on groups;
+create policy "anyone can update groups" on groups for update using (true) with check (true);
 
+drop policy if exists "anyone can read profiles" on profiles;
 create policy "anyone can read profiles" on profiles for select using (true);
+drop policy if exists "anyone can create profiles" on profiles;
 create policy "anyone can create profiles" on profiles for insert with check (true);
 
--- Powers the "waiting for X more people" live count on the join screen.
-alter publication supabase_realtime add table profiles;
+drop policy if exists "anyone can read messages" on messages;
+create policy "anyone can read messages" on messages for select using (true);
+drop policy if exists "anyone can create messages" on messages;
+create policy "anyone can create messages" on messages for insert with check (true);
+
+-- Powers the "waiting for X more people" live count, the live chat, and the
+-- live "Finalised" stamp appearing for everyone as soon as it happens.
+-- Guarded because "add table" errors if the table's already a member.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'groups'
+  ) then
+    alter publication supabase_realtime add table groups;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table profiles;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table messages;
+  end if;
+end $$;

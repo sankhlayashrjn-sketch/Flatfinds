@@ -3,16 +3,12 @@
 import Link from "next/link";
 import { useWishlist } from "@/hooks/useWishlist";
 
-export function ShortlistTabs({
-  groupId,
-  active,
-}: {
-  groupId: string;
-  active: "shortlist" | "wishlist";
-}) {
+type Tab = "shortlist" | "wishlist" | "discuss";
+
+export function ShortlistTabs({ groupId, active }: { groupId: string; active: Tab }) {
   const { ids } = useWishlist(groupId);
 
-  const tabClass = (tab: "shortlist" | "wishlist") =>
+  const tabClass = (tab: Tab) =>
     `rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${
       active === tab
         ? "brand-bg text-white"
@@ -26,6 +22,9 @@ export function ShortlistTabs({
       </Link>
       <Link href={`/group/${groupId}/wishlist`} className={tabClass("wishlist")}>
         My wishlist{ids.length > 0 ? ` (${ids.length})` : ""}
+      </Link>
+      <Link href={`/group/${groupId}/discuss`} className={tabClass("discuss")}>
+        Discuss
       </Link>
     </div>
   );

@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getGroup, getProfiles, submitProfile } from "@/lib/groupApi";
+import { saveMyName } from "@/lib/me";
 import { PreferenceForm } from "@/components/PreferenceForm";
 import type { Group, MustHaveFilters, SoftPreferences } from "@/types/flatfinds";
 
@@ -47,6 +48,7 @@ export default function JoinPage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmit = async (n: string, musts: MustHaveFilters, preferences: SoftPreferences) => {
     await submitProfile(groupId, n, musts, preferences);
+    saveMyName(groupId, n);
     router.push(`/group/${groupId}`);
   };
 
