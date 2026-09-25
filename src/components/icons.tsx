@@ -42,9 +42,15 @@ export function FloorIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
-export function HeartIcon({ className = "h-4 w-4" }: IconProps) {
+export function HeartIcon({ className = "h-4 w-4", filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
       <path
         d="M12 20s-7-4.35-9.5-8.5C.8 8.3 2.2 5 5.5 5c1.9 0 3.3 1 4.5 2.6C11.2 6 12.6 5 14.5 5 17.8 5 19.2 8.3 21.5 11.5 19 15.65 12 20 12 20Z"
         strokeLinecap="round"

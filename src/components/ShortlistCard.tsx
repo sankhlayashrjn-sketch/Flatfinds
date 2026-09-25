@@ -1,6 +1,7 @@
 import type { ShortlistEntry } from "@/types/flatfinds";
 import { personAccent } from "@/lib/personColors";
-import { ListingPhotoPlaceholder } from "./ListingPhotoPlaceholder";
+import { useWishlist } from "@/hooks/useWishlist";
+import { ListingPhoto } from "./ListingPhoto";
 import { PersonMatchBlock } from "./PersonMatchBlock";
 import { AreaIcon, BathIcon, BedIcon, FloorIcon, HeartIcon, VerifiedIcon } from "./icons";
 
@@ -8,8 +9,10 @@ function formatInr(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-export function ShortlistCard({ entry }: { entry: ShortlistEntry }) {
+export function ShortlistCard({ entry, groupId }: { entry: ShortlistEntry; groupId: string }) {
   const { listing } = entry;
+  const { isSaved, toggle } = useWishlist(groupId);
+  const saved = isSaved(listing.id);
 
   return (
     <div
@@ -20,16 +23,27 @@ export function ShortlistCard({ entry }: { entry: ShortlistEntry }) {
       }`}
     >
       <div className="relative">
-        <ListingPhotoPlaceholder id={listing.id} label={listing.houseType} />
+        <ListingPhoto id={listing.id} title={listing.title} />
         {listing.verified && (
           <span className="accent-bg absolute left-3 top-3 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-white shadow">
             <VerifiedIcon />
             Verified
           </span>
         )}
-        <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow dark:bg-slate-900/80 dark:text-slate-300">
-          <HeartIcon />
-        </span>
+        <button
+          type="button"
+          onClick={() => toggle(listing.id)}
+          aria-pressed={saved}
+          aria-label={saved ? "Remove from my wishlist" : "Save to my wishlist"}
+          title={saved ? "Saved to your wishlist" : "Save to your wishlist (private, just for you)"}
+          className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full shadow transition-colors ${
+            saved
+              ? "bg-rose-600 text-white"
+              : "bg-white/90 text-slate-500 hover:text-rose-600 dark:bg-slate-900/80 dark:text-slate-300"
+          }`}
+        >
+          <HeartIcon filled={saved} />
+        </button>
       </div>
 
       {entry.isFallback && (
