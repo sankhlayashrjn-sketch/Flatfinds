@@ -129,10 +129,33 @@ describe("computeShortlist", () => {
     expect(shortlist.map((e) => e.listing.id)).not.toContain("over-budget");
   });
 
-  it("returns an empty shortlist when nothing clears everyone's musts", () => {
+  it("never returns empty — falls back to the closest listing with a flagged compromise when nothing clears every must", () => {
     const listing = makeListing({ rentInr: 100000 });
+    const profile = makeProfile(); // maxRentInr: 35000
+    const shortlist = computeShortlist([profile], [listing]);
+    expect(shortlist).toHaveLength(1);
+    expect(shortlist[0].isFallback).toBe(true);
+    expect(shortlist[0].fallbackNote).toContain("Riya");
+    expect(shortlist[0].fallbackNote).toContain("must-have");
+  });
+
+  it("when relaxing musts, still ranks by fewest broken musts first", () => {
+    const breaksOne = makeListing({ id: "breaks-one", rentInr: 40000 }); // over budget only
+    const breaksTwo = makeListing({ id: "breaks-two", rentInr: 40000, bathrooms: 0 }); // over budget + too few baths
+    const profile = makeProfile(); // maxRentInr: 35000, minBathrooms: 1
+    const shortlist = computeShortlist([profile], [breaksTwo, breaksOne]);
+    expect(shortlist[0].listing.id).toBe("breaks-one");
+    expect(shortlist.every((e) => e.isFallback)).toBe(true);
+  });
+
+  it("prefers a listing that clears every must over one that doesn't, even if the must-passing one has worse preferences", () => {
+    const mustPassing = makeListing({ id: "must-passing", houseType: "3BHK" }); // clears musts, misses a preference
+    const mustBreaking = makeListing({ id: "must-breaking", rentInr: 100000 }); // matches every preference, breaks budget
     const profile = makeProfile();
-    expect(computeShortlist([profile], [listing])).toEqual([]);
+    const shortlist = computeShortlist([profile], [mustBreaking, mustPassing]);
+    expect(shortlist.map((e) => e.listing.id)).not.toContain("must-breaking");
+    expect(shortlist[0].listing.id).toBe("must-passing");
+    expect(shortlist[0].isFallback).toBe(false);
   });
 
   it("marks a listing as fallback when fewer than two qualify at 50%+", () => {

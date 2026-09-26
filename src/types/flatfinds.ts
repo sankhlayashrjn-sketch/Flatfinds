@@ -91,6 +91,20 @@ export interface Listing {
   longitude: number;
 }
 
+export type MustCriterion =
+  | "rent"
+  | "bathrooms"
+  | "lift"
+  | "parking"
+  | "petFriendly"
+  | "excludedLocality";
+
+/** One must-have a listing broke for a given person — used only when nothing clears every must, see computeShortlist. */
+export interface MustViolation {
+  criterion: MustCriterion;
+  detail: string;
+}
+
 export type SoftCriterion =
   | "houseType"
   | "propertyType"
