@@ -32,10 +32,8 @@ export default function Home() {
       <div className="flex items-center gap-6">
         <div className="min-w-0">
           <h1 className="brand-text text-4xl font-extrabold tracking-tight">FlatFinds</h1>
-          <p className="mt-2 max-w-xl text-slate-600 dark:text-slate-400">
-            A group of flatmates, one shortlist. Everyone submits their own preferences privately
-            first, then the group sees the same 2-3 flats together — with a clear breakdown of
-            what each person gets and what they&apos;re compromising on.
+          <p className="mt-2 max-w-xl text-lg text-slate-600 dark:text-slate-400">
+            Sort your home selection here!
           </p>
         </div>
         <GroupHomeIllustration className="hidden h-28 w-28 shrink-0 sm:block" />
