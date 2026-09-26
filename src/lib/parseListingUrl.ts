@@ -50,22 +50,51 @@ function findHouseType(text: string): HouseType | null {
   return (HOUSE_TYPES as readonly string[]).includes(candidate) ? (candidate as HouseType) : null;
 }
 
-function findPropertyType(text: string): PropertyType | null {
-  const lower = text.toLowerCase();
-  const ordered: PropertyType[] = ["Villa", "Independent House", "Gated Community", "Society", "Apartment"];
-  for (const type of ordered) {
-    if (lower.includes(type.toLowerCase())) return type;
+/**
+ * A page's body is full of keywords that have nothing to do with THIS
+ * listing — "Browse Villas nearby", related-locality links, footer nav — so
+ * checking the body for any match at all is unreliable. The title is the
+ * one place that reliably describes this specific listing, so it's checked
+ * first; the body is only a fallback for pages with a sparse title.
+ */
+function fromTitleThenBody<T>(
+  titleLower: string,
+  bodyLower: string,
+  candidates: readonly T[],
+  matches: (candidate: T, text: string) => boolean,
+): T | null {
+  for (const candidate of candidates) {
+    if (matches(candidate, titleLower)) return candidate;
+  }
+  for (const candidate of candidates) {
+    if (matches(candidate, bodyLower)) return candidate;
   }
   return null;
 }
 
-function findFurnishing(text: string): Furnishing | null {
-  const lower = text.toLowerCase();
-  for (const f of FURNISHING_TYPES) {
-    if (lower.includes(f.toLowerCase())) return f;
-  }
-  if (lower.includes("unfurnished")) return "Unfurnished";
-  return null;
+// "Flat" is the common everyday word for what this app calls "Apartment" —
+// listing sites say "2 BHK Flat" far more often than "2 BHK Apartment".
+const PROPERTY_TYPE_ALIASES: [string, PropertyType][] = [
+  ["villa", "Villa"],
+  ["independent house", "Independent House"],
+  ["gated community", "Gated Community"],
+  ["society", "Society"],
+  ["apartment", "Apartment"],
+  ["flat", "Apartment"],
+];
+
+function findPropertyType(titleLower: string, bodyLower: string): PropertyType | null {
+  return fromTitleThenBody(titleLower, bodyLower, PROPERTY_TYPE_ALIASES, ([keyword], text) =>
+    text.includes(keyword),
+  )?.[1] ?? null;
+}
+
+function findFurnishing(titleLower: string, bodyLower: string): Furnishing | null {
+  // Sites write "Semi-furnished" as often as "Semi Furnished" — normalize the
+  // hyphen away so both spellings match the same way a person reading it would.
+  return fromTitleThenBody(titleLower.replace(/-/g, " "), bodyLower.replace(/-/g, " "), FURNISHING_TYPES, (f, text) =>
+    text.includes(f.toLowerCase()),
+  );
 }
 
 function findBathrooms(text: string): number | null {
@@ -77,12 +106,15 @@ function findBoolean(text: string, positive: RegExp): boolean | null {
   return positive.test(text) ? true : null;
 }
 
-function findLocality(text: string, localities: string[]): string | null {
-  const lower = text.toLowerCase();
+function longestMatch(localities: string[], lower: string): string | null {
   const found = localities
     .filter((locality) => lower.includes(locality.toLowerCase()))
     .sort((a, b) => b.length - a.length);
   return found[0] ?? null;
+}
+
+function findLocality(titleLower: string, bodyLower: string, localities: string[]): string | null {
+  return longestMatch(localities, titleLower) ?? longestMatch(localities, bodyLower);
 }
 
 export function extractListingInfo(html: string, localities: string[]): ParsedListingFields {
@@ -94,15 +126,17 @@ export function extractListingInfo(html: string, localities: string[]): ParsedLi
 
   const bodyText = $("body").text().replace(/\s+/g, " ").slice(0, 20000);
   const searchText = `${title ?? ""} ${bodyText}`;
+  const titleLower = (title ?? "").toLowerCase();
+  const bodyLower = bodyText.toLowerCase();
 
   return {
     title,
     imageUrl,
     rentInr: findRentInr(searchText),
-    locality: findLocality(searchText, localities),
+    locality: findLocality(titleLower, bodyLower, localities),
     houseType: findHouseType(searchText),
-    propertyType: findPropertyType(searchText),
-    furnishing: findFurnishing(searchText),
+    propertyType: findPropertyType(titleLower, bodyLower),
+    furnishing: findFurnishing(titleLower, bodyLower),
     bathrooms: findBathrooms(searchText),
     hasLift: findBoolean(searchText, /\blift\b|\belevator\b/i),
     hasParking: findBoolean(searchText, /\bparking\b/i),

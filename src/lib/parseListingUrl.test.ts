@@ -80,6 +80,39 @@ describe("extractListingInfo", () => {
     const result = extractListingInfo(html, localities);
     expect(result.petFriendly).toBe(true);
   });
+
+  it("prefers the title's locality over unrelated locality links in the body", () => {
+    // Real listing pages carry "explore nearby areas" / "similar in X" links
+    // mentioning other localities — the title still names the actual one.
+    const html = page(
+      "Browse more in Hinjewadi Phase 1. Also popular: Kothrud. See other options nearby.",
+      { ogTitle: "2 BHK Flat in Wakad for Rs. 27,000" },
+    );
+    const result = extractListingInfo(html, localities);
+    expect(result.locality).toBe("Wakad");
+  });
+
+  it("treats 'Flat' in the title as an Apartment", () => {
+    const html = page("Some details.", { ogTitle: "2 BHK Flat in Wakad" });
+    const result = extractListingInfo(html, localities);
+    expect(result.propertyType).toBe("Apartment");
+  });
+
+  it("doesn't let a body-text 'Villa' link override the title's actual property type", () => {
+    const html = page("Looking for something bigger? Browse Villas for rent nearby.", {
+      ogTitle: "2 BHK Flat in Wakad",
+    });
+    const result = extractListingInfo(html, localities);
+    expect(result.propertyType).toBe("Apartment");
+  });
+
+  it("matches 'Semi-furnished' (hyphenated) the same as 'Semi Furnished'", () => {
+    const html = page("Some details.", {
+      ogTitle: "Semi-furnished 2 BHK Rental Flat in Wakad, Pune for Rs. 27,000",
+    });
+    const result = extractListingInfo(html, localities);
+    expect(result.furnishing).toBe("Semi Furnished");
+  });
 });
 
 describe("fetchAndParseListing", () => {
