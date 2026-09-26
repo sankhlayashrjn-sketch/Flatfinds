@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getGroup, getProfiles, submitProfile } from "@/lib/groupApi";
+import { addSuggestedListing, getGroup, getProfiles, submitProfile } from "@/lib/groupApi";
 import { saveMyName } from "@/lib/me";
 import { PreferenceForm } from "@/components/PreferenceForm";
 import type { Group, MustHaveFilters, SoftPreferences } from "@/types/flatfinds";
@@ -46,9 +46,15 @@ export default function JoinPage({ params }: { params: Promise<{ id: string }> }
     };
   }, [groupId]);
 
-  const handleSubmit = async (n: string, musts: MustHaveFilters, preferences: SoftPreferences) => {
+  const handleSubmit = async (
+    n: string,
+    musts: MustHaveFilters,
+    preferences: SoftPreferences,
+    suggestedUrls: string[],
+  ) => {
     await submitProfile(groupId, n, musts, preferences);
     saveMyName(groupId, n);
+    await Promise.allSettled(suggestedUrls.map((url) => addSuggestedListing(groupId, n, url)));
     router.push(`/group/${groupId}`);
   };
 

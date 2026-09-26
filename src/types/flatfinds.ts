@@ -89,6 +89,35 @@ export interface Listing {
   amenities: string[];
   latitude: number;
   longitude: number;
+  /** Set only for a listing built from a member-submitted URL — absent for the mock pool. */
+  suggestion?: {
+    submittedBy: string;
+    url: string;
+    parseStatus: "pending" | "parsed" | "failed";
+    /** What was actually detected, before neutral defaults were filled in for scoring — use this for display. */
+    raw: SuggestedListing;
+  };
+}
+
+/** A listing URL a group member found on their own, submitted alongside their preferences. */
+export interface SuggestedListing {
+  id: string;
+  groupId: string;
+  submittedBy: string;
+  url: string;
+  parseStatus: "pending" | "parsed" | "failed";
+  title: string | null;
+  imageUrl: string | null;
+  rentInr: number | null;
+  locality: string | null;
+  houseType: HouseType | null;
+  propertyType: PropertyType | null;
+  furnishing: Furnishing | null;
+  bathrooms: number | null;
+  hasLift: boolean | null;
+  hasParking: boolean | null;
+  petFriendly: boolean | null;
+  createdAt: string;
 }
 
 export type MustCriterion =

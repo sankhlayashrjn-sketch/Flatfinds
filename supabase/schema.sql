@@ -38,6 +38,33 @@ create table if not exists messages (
 
 create index if not exists messages_group_id_idx on messages (group_id);
 
+-- A URL someone found on their own (99acres, MagicBricks, NoBroker, ...),
+-- submitted alongside their preferences. Parsed best-effort on the server
+-- (see src/lib/parseListingUrl.ts) so it can be scored by the same matcher
+-- as the mock pool — parse_status/raw_* stay populated even when parsing
+-- fails so the UI can say so instead of guessing.
+create table if not exists suggested_listings (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups (id) on delete cascade,
+  submitted_by text not null,
+  url text not null,
+  parse_status text not null default 'pending' check (parse_status in ('pending', 'parsed', 'failed')),
+  title text,
+  image_url text,
+  rent_inr integer,
+  locality text,
+  house_type text,
+  property_type text,
+  furnishing text,
+  bathrooms integer,
+  has_lift boolean,
+  has_parking boolean,
+  pet_friendly boolean,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists suggested_listings_group_id_idx on suggested_listings (group_id);
+
 -- There's no accounts/auth in this app: a group is reachable by anyone who
 -- has its id (from the QR code or invite link), which is the deliberate
 -- "if you have the link you're in" model the join flow depends on. These
@@ -48,6 +75,7 @@ create index if not exists messages_group_id_idx on messages (group_id);
 alter table groups enable row level security;
 alter table profiles enable row level security;
 alter table messages enable row level security;
+alter table suggested_listings enable row level security;
 
 drop policy if exists "anyone can read groups" on groups;
 create policy "anyone can read groups" on groups for select using (true);
@@ -65,6 +93,11 @@ drop policy if exists "anyone can read messages" on messages;
 create policy "anyone can read messages" on messages for select using (true);
 drop policy if exists "anyone can create messages" on messages;
 create policy "anyone can create messages" on messages for insert with check (true);
+
+drop policy if exists "anyone can read suggested_listings" on suggested_listings;
+create policy "anyone can read suggested_listings" on suggested_listings for select using (true);
+drop policy if exists "anyone can create suggested_listings" on suggested_listings;
+create policy "anyone can create suggested_listings" on suggested_listings for insert with check (true);
 
 -- Powers the "waiting for X more people" live count, the live chat, and the
 -- live "Finalised" stamp appearing for everyone as soon as it happens.
@@ -88,5 +121,11 @@ begin
     where pubname = 'supabase_realtime' and tablename = 'messages'
   ) then
     alter publication supabase_realtime add table messages;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'suggested_listings'
+  ) then
+    alter publication supabase_realtime add table suggested_listings;
   end if;
 end $$;

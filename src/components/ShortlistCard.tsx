@@ -28,6 +28,8 @@ export function ShortlistCard({
   onFinalized?: (group: Group) => void;
 }) {
   const { listing } = entry;
+  const suggestion = listing.suggestion;
+  const raw = suggestion?.raw;
   const { isSaved, toggle } = useWishlist(groupId);
   const saved = isSaved(listing.id);
   const isChosen = finalizedListingId === listing.id;
@@ -61,7 +63,7 @@ export function ShortlistCard({
       }`}
     >
       <div className="relative">
-        <ListingPhoto id={listing.id} title={listing.title} />
+        <ListingPhoto id={listing.id} title={listing.title} imageUrl={raw?.imageUrl} />
         {isChosen && <FinalizedStamp />}
         {listing.verified && (
           <span className="accent-bg absolute left-3 top-3 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-white shadow">
@@ -104,40 +106,85 @@ export function ShortlistCard({
           {listing.society} · {listing.locality}, {listing.city}
         </p>
 
+        {suggestion && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
+              🔗 Found by {suggestion.submittedBy}
+            </span>
+            <a
+              href={suggestion.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-rose-700 hover:underline dark:text-rose-400"
+            >
+              View original listing ↗
+            </a>
+          </div>
+        )}
+
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            {formatInr(listing.rentInr)}
-          </span>
-          <span className="text-xs text-slate-400">/month</span>
-          <span className="text-xs text-slate-400">
-            · {formatInr(listing.depositInr)} deposit
-          </span>
+          {suggestion && raw?.rentInr == null ? (
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Rent not detected — check the original listing
+            </span>
+          ) : (
+            <>
+              <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                {formatInr(listing.rentInr)}
+              </span>
+              <span className="text-xs text-slate-400">/month</span>
+              {!suggestion && (
+                <span className="text-xs text-slate-400">
+                  · {formatInr(listing.depositInr)} deposit
+                </span>
+              )}
+            </>
+          )}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-slate-100 py-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
-          <span className="flex items-center gap-1.5">
-            <BedIcon className="h-4 w-4 text-slate-400" /> {listing.houseType}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <BathIcon className="h-4 w-4 text-slate-400" /> {listing.bathrooms} Bath
-          </span>
-          <span className="flex items-center gap-1.5">
-            <AreaIcon className="h-4 w-4 text-slate-400" /> {listing.areaSqFt} sqft
-          </span>
-          <span className="flex items-center gap-1.5">
-            <FloorIcon className="h-4 w-4 text-slate-400" /> Floor {listing.floor}/
-            {listing.totalFloors}
-          </span>
-        </div>
+        {(!suggestion || raw?.houseType || raw?.bathrooms) && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-slate-100 py-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+            {(!suggestion || raw?.houseType) && (
+              <span className="flex items-center gap-1.5">
+                <BedIcon className="h-4 w-4 text-slate-400" /> {listing.houseType}
+              </span>
+            )}
+            {(!suggestion || raw?.bathrooms) && (
+              <span className="flex items-center gap-1.5">
+                <BathIcon className="h-4 w-4 text-slate-400" /> {listing.bathrooms} Bath
+              </span>
+            )}
+            {!suggestion && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <AreaIcon className="h-4 w-4 text-slate-400" /> {listing.areaSqFt} sqft
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <FloorIcon className="h-4 w-4 text-slate-400" /> Floor {listing.floor}/
+                  {listing.totalFloors}
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {[
-            listing.propertyType,
-            listing.furnishing,
-            listing.hasLift ? "Lift" : null,
-            listing.hasParking ? "Parking" : null,
-            listing.petFriendly ? "Pet-friendly" : null,
-          ]
+          {(suggestion
+            ? [
+                raw?.propertyType ?? null,
+                raw?.furnishing ?? null,
+                raw?.hasLift ? "Lift" : null,
+                raw?.hasParking ? "Parking" : null,
+                raw?.petFriendly ? "Pet-friendly" : null,
+              ]
+            : [
+                listing.propertyType,
+                listing.furnishing,
+                listing.hasLift ? "Lift" : null,
+                listing.hasParking ? "Parking" : null,
+                listing.petFriendly ? "Pet-friendly" : null,
+              ]
+          )
             .filter((chip): chip is string => !!chip)
             .map((chip) => (
               <span
@@ -149,7 +196,7 @@ export function ShortlistCard({
             ))}
         </div>
 
-        {listing.amenities.length > 0 && (
+        {!suggestion && listing.amenities.length > 0 && (
           <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
             {listing.amenities.join(" · ")}
           </p>

@@ -52,7 +52,25 @@ function stableHash(input: string): number {
   return hash;
 }
 
-export function ListingPhoto({ id, title }: { id: string; title: string }) {
+export function ListingPhoto({
+  id,
+  title,
+  imageUrl,
+}: {
+  id: string;
+  title: string;
+  /** A real photo pulled from a member-submitted listing page — arbitrary external host, so it can't go through next/image. */
+  imageUrl?: string | null;
+}) {
+  if (imageUrl) {
+    return (
+      <div className="relative h-40 w-full bg-slate-200 dark:bg-slate-800">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
   const photoId = APARTMENT_PHOTO_IDS[stableHash(id) % APARTMENT_PHOTO_IDS.length];
   return (
     <div className="relative h-40 w-full bg-slate-200 dark:bg-slate-800">

@@ -1,13 +1,16 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useGroup } from "@/hooks/useGroup";
 import { useGroupProfiles } from "@/hooks/useGroupProfiles";
 import { useGroupMessages } from "@/hooks/useGroupMessages";
+import { useSuggestedListings } from "@/hooks/useSuggestedListings";
 import { sendMessage } from "@/lib/groupApi";
 import { loadMyName, saveMyName } from "@/lib/me";
+import { listingPool } from "@/lib/listingPool";
 import { personAccent } from "@/lib/personColors";
+import { suggestedListingToListing } from "@/lib/suggestedListings";
 import { ShortlistTabs } from "@/components/ShortlistTabs";
 import { FinalizedBanner } from "@/components/FinalizedBanner";
 
@@ -19,7 +22,18 @@ export default function DiscussPage({ params }: { params: Promise<{ id: string }
   const { id: groupId } = use(params);
   const { group, notFound } = useGroup(groupId);
   const { profiles } = useGroupProfiles(groupId);
+  const { suggestedListings } = useSuggestedListings(groupId);
   const messages = useGroupMessages(groupId);
+
+  const allListings = useMemo(
+    () => [
+      ...listingPool,
+      ...(suggestedListings ?? [])
+        .filter((s) => s.parseStatus === "parsed")
+        .map(suggestedListingToListing),
+    ],
+    [suggestedListings],
+  );
 
   const [myName, setMyName] = useState<string | null>(null);
   const [nameChecked, setNameChecked] = useState(false);
@@ -114,7 +128,7 @@ export default function DiscussPage({ params }: { params: Promise<{ id: string }
       </p>
 
       <ShortlistTabs groupId={groupId} active="discuss" />
-      <FinalizedBanner group={group} />
+      <FinalizedBanner group={group} listings={allListings} />
 
       {!myName ? (
         <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">

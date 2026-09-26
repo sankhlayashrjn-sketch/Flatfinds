@@ -4,8 +4,10 @@ import { use, useMemo } from "react";
 import Link from "next/link";
 import { useGroup } from "@/hooks/useGroup";
 import { useGroupProfiles } from "@/hooks/useGroupProfiles";
+import { useSuggestedListings } from "@/hooks/useSuggestedListings";
 import { listingPool } from "@/lib/listingPool";
 import { computeShortlist } from "@/lib/matchListings";
+import { suggestedListingToListing } from "@/lib/suggestedListings";
 import { ShortlistCard } from "@/components/ShortlistCard";
 import { ShortlistTabs } from "@/components/ShortlistTabs";
 import { FinalizedBanner } from "@/components/FinalizedBanner";
@@ -15,11 +17,26 @@ export default function ShortlistPage({ params }: { params: Promise<{ id: string
   const { id: groupId } = use(params);
   const { group, notFound, setGroup } = useGroup(groupId);
   const { profiles } = useGroupProfiles(groupId);
+  const { suggestedListings } = useSuggestedListings(groupId);
+
+  const parsedSuggestions = useMemo(
+    () => (suggestedListings ?? []).filter((s) => s.parseStatus === "parsed").map(suggestedListingToListing),
+    [suggestedListings],
+  );
+  const unreadableSuggestions = useMemo(
+    () => (suggestedListings ?? []).filter((s) => s.parseStatus !== "parsed"),
+    [suggestedListings],
+  );
+
+  const allListings = useMemo(
+    () => [...listingPool, ...parsedSuggestions],
+    [parsedSuggestions],
+  );
 
   const shortlist = useMemo(() => {
     if (!profiles || profiles.length === 0) return null;
-    return computeShortlist(profiles, listingPool);
-  }, [profiles]);
+    return computeShortlist(profiles, allListings);
+  }, [profiles, allListings]);
 
   if (notFound) {
     return (
@@ -76,7 +93,7 @@ export default function ShortlistPage({ params }: { params: Promise<{ id: string
       </p>
 
       <ShortlistTabs groupId={groupId} active="shortlist" />
-      <FinalizedBanner group={group} />
+      <FinalizedBanner group={group} listings={allListings} />
 
       {!shortlist || shortlist.length === 0 ? (
         <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-8 text-center text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
@@ -98,6 +115,33 @@ export default function ShortlistPage({ params }: { params: Promise<{ id: string
               onFinalized={setGroup}
             />
           ))}
+        </div>
+      )}
+
+      {unreadableSuggestions.length > 0 && (
+        <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+          <p className="font-semibold text-slate-700 dark:text-slate-300">
+            Links the group found that couldn&apos;t be read automatically
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Not enough detail on the page to score against everyone&apos;s musts and preferences —
+            open the link directly to check it yourself.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {unreadableSuggestions.map((s) => (
+              <li key={s.id} className="truncate">
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-rose-700 hover:underline dark:text-rose-400"
+                >
+                  {s.url}
+                </a>
+                <span className="text-slate-500 dark:text-slate-400"> — found by {s.submittedBy}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

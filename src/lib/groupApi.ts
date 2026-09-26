@@ -7,6 +7,7 @@ import type {
   GroupMessage,
   MustHaveFilters,
   SoftPreferences,
+  SuggestedListing,
 } from "@/types/flatfinds";
 
 interface GroupRow {
@@ -32,6 +33,26 @@ interface MessageRow {
   group_id: string;
   sender_name: string;
   body: string;
+  created_at: string;
+}
+
+interface SuggestedListingRow {
+  id: string;
+  group_id: string;
+  submitted_by: string;
+  url: string;
+  parse_status: "pending" | "parsed" | "failed";
+  title: string | null;
+  image_url: string | null;
+  rent_inr: number | null;
+  locality: string | null;
+  house_type: string | null;
+  property_type: string | null;
+  furnishing: string | null;
+  bathrooms: number | null;
+  has_lift: boolean | null;
+  has_parking: boolean | null;
+  pet_friendly: boolean | null;
   created_at: string;
 }
 
@@ -63,6 +84,28 @@ function rowToMessage(row: MessageRow): GroupMessage {
     groupId: row.group_id,
     senderName: row.sender_name,
     body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+function rowToSuggestedListing(row: SuggestedListingRow): SuggestedListing {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    submittedBy: row.submitted_by,
+    url: row.url,
+    parseStatus: row.parse_status,
+    title: row.title,
+    imageUrl: row.image_url,
+    rentInr: row.rent_inr,
+    locality: row.locality,
+    houseType: row.house_type as SuggestedListing["houseType"],
+    propertyType: row.property_type as SuggestedListing["propertyType"],
+    furnishing: row.furnishing as SuggestedListing["furnishing"],
+    bathrooms: row.bathrooms,
+    hasLift: row.has_lift,
+    hasParking: row.has_parking,
+    petFriendly: row.pet_friendly,
     createdAt: row.created_at,
   };
 }
@@ -149,4 +192,33 @@ export async function getMessages(groupId: string): Promise<GroupMessage[]> {
     .returns<MessageRow[]>();
   if (error) throw error;
   return (data ?? []).map(rowToMessage);
+}
+
+/** Fetches + parses the URL server-side (see /api/parse-listing) and stores the result, whether or not parsing succeeded. */
+export async function addSuggestedListing(
+  groupId: string,
+  submittedBy: string,
+  url: string,
+): Promise<SuggestedListing> {
+  const res = await fetch("/api/parse-listing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ groupId, submittedBy, url }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "Couldn't save that listing link");
+  }
+  return res.json();
+}
+
+export async function getSuggestedListings(groupId: string): Promise<SuggestedListing[]> {
+  const { data, error } = await supabase
+    .from("suggested_listings")
+    .select()
+    .eq("group_id", groupId)
+    .order("created_at")
+    .returns<SuggestedListingRow[]>();
+  if (error) throw error;
+  return (data ?? []).map(rowToSuggestedListing);
 }

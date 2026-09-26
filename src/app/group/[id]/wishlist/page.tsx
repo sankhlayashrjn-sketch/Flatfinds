@@ -4,9 +4,11 @@ import { use, useMemo } from "react";
 import Link from "next/link";
 import { useGroup } from "@/hooks/useGroup";
 import { useGroupProfiles } from "@/hooks/useGroupProfiles";
+import { useSuggestedListings } from "@/hooks/useSuggestedListings";
 import { useWishlist } from "@/hooks/useWishlist";
 import { listingPool } from "@/lib/listingPool";
 import { computeShortlist } from "@/lib/matchListings";
+import { suggestedListingToListing } from "@/lib/suggestedListings";
 import { ShortlistCard } from "@/components/ShortlistCard";
 import { ShortlistTabs } from "@/components/ShortlistTabs";
 import { FinalizedBanner } from "@/components/FinalizedBanner";
@@ -16,12 +18,23 @@ export default function WishlistPage({ params }: { params: Promise<{ id: string 
   const { id: groupId } = use(params);
   const { group, notFound, setGroup } = useGroup(groupId);
   const { profiles } = useGroupProfiles(groupId);
+  const { suggestedListings } = useSuggestedListings(groupId);
   const { ids: savedIds, loaded } = useWishlist(groupId);
+
+  const allListings = useMemo(
+    () => [
+      ...listingPool,
+      ...(suggestedListings ?? [])
+        .filter((s) => s.parseStatus === "parsed")
+        .map(suggestedListingToListing),
+    ],
+    [suggestedListings],
+  );
 
   const shortlist = useMemo(() => {
     if (!profiles || profiles.length === 0) return null;
-    return computeShortlist(profiles, listingPool);
-  }, [profiles]);
+    return computeShortlist(profiles, allListings);
+  }, [profiles, allListings]);
 
   const saved = useMemo(
     () => shortlist?.filter((entry) => savedIds.includes(entry.listing.id)) ?? [],
@@ -84,7 +97,7 @@ export default function WishlistPage({ params }: { params: Promise<{ id: string 
       </p>
 
       <ShortlistTabs groupId={groupId} active="wishlist" />
-      <FinalizedBanner group={group} />
+      <FinalizedBanner group={group} listings={allListings} />
 
       {saved.length === 0 ? (
         <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500 dark:border-slate-600 dark:text-slate-400">

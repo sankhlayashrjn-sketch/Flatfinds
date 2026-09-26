@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { submitProfile } from "@/lib/groupApi";
+import { addSuggestedListing, submitProfile } from "@/lib/groupApi";
 import { saveMyName } from "@/lib/me";
 import { PreferenceForm } from "@/components/PreferenceForm";
 import type { MustHaveFilters, SoftPreferences } from "@/types/flatfinds";
@@ -11,9 +11,15 @@ export default function CreatorProfilePage({ params }: { params: Promise<{ id: s
   const { id: groupId } = use(params);
   const router = useRouter();
 
-  const handleSubmit = async (name: string, musts: MustHaveFilters, preferences: SoftPreferences) => {
+  const handleSubmit = async (
+    name: string,
+    musts: MustHaveFilters,
+    preferences: SoftPreferences,
+    suggestedUrls: string[],
+  ) => {
     await submitProfile(groupId, name, musts, preferences);
     saveMyName(groupId, name);
+    await Promise.allSettled(suggestedUrls.map((url) => addSuggestedListing(groupId, name, url)));
     router.push(`/group/${groupId}`);
   };
 

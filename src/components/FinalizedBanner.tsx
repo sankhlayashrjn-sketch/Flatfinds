@@ -1,9 +1,8 @@
-import { listingPool } from "@/lib/listingPool";
-import type { Group } from "@/types/flatfinds";
+import type { Group, Listing } from "@/types/flatfinds";
 
-export function FinalizedBanner({ group }: { group: Group }) {
+export function FinalizedBanner({ group, listings }: { group: Group; listings: Listing[] }) {
   if (!group.finalizedListingId) return null;
-  const listing = listingPool.find((l) => l.id === group.finalizedListingId);
+  const listing = listings.find((l) => l.id === group.finalizedListingId);
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border-2 border-red-600 bg-red-50 px-4 py-3 dark:bg-red-950/30">
