@@ -51,6 +51,24 @@ describe("extractListingInfo", () => {
     expect(result.petFriendly).toBeNull();
   });
 
+  it("recognizes a 'Rs.' prefixed rent, not just the ₹ symbol", () => {
+    const html = page("2 BHK flat available now.", { ogTitle: "2 BHK Flat in Wakad for Rs. 27,000" });
+    const result = extractListingInfo(html, localities);
+    expect(result.rentInr).toBe(27000);
+  });
+
+  it("prefers the title's rent over other amounts scattered through the body", () => {
+    // Real listing pages repeat several unrelated amounts in the body (similar
+    // listings, deposit, per-sqft rate) — the title's own figure is the
+    // reliable one, and it's searched first since it's prepended to the text.
+    const html = page(
+      "Similar nearby: ₹22,500. Deposit ₹60,000. Rent ₹28,000 shown elsewhere on the page.",
+      { ogTitle: "2 BHK Flat in Wakad for Rs. 27,000" },
+    );
+    const result = extractListingInfo(html, localities);
+    expect(result.rentInr).toBe(27000);
+  });
+
   it("ignores an out-of-range number that isn't a plausible monthly rent", () => {
     const html = page("Total project value ₹250000000. No monthly figure mentioned.");
     const result = extractListingInfo(html, localities);

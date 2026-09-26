@@ -29,7 +29,11 @@ export interface ParsedListingFields {
 }
 
 function findRentInr(text: string): number | null {
-  const matches = [...text.matchAll(/₹\s?([\d][\d,]{2,9})(?:\s?\/?-?\s?(?:mo|month|pm))?/gi)];
+  // The title is far more reliable than body text — a page's main rent
+  // headline usually reads "for Rs. 27,000", while the body repeats several
+  // other amounts (similar listings, deposit, per-sqft rate). Since the
+  // caller puts the title first, its match naturally wins by appearing first.
+  const matches = [...text.matchAll(/(?:₹|Rs\.?|INR)\s?([\d][\d,]{2,9})(?:\s?\/?-?\s?(?:mo|month|pm))?/gi)];
   for (const m of matches) {
     const value = Number(m[1].replace(/,/g, ""));
     // Deposits/prices tend to be much larger or reported alongside "deposit" —
